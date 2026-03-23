@@ -1,0 +1,897 @@
+local Player = game.Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+
+local fileName = "PhantomHub_" .. tostring(Player.UserId) .. ".json"
+local savedSettings = {}
+
+if type(isfile) == "function" and isfile(fileName) then
+    local success, data = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(readfile(fileName))
+    end)
+    if success and type(data) == "table" then
+        savedSettings = data
+    end
+end
+
+local function saveSettings()
+    if type(writefile) == "function" then
+        pcall(function()
+            writefile(fileName, game:GetService("HttpService"):JSONEncode(savedSettings))
+        end)
+    end
+end
+
+local optionStates = {}
+
+local function createOptionState(name, initialValue)
+    if savedSettings[name] ~= nil then
+        optionStates[name] = savedSettings[name]
+    else
+        optionStates[name] = initialValue
+    end
+    return function() return optionStates[name] end
+end
+
+local function setOptionState(name, value)
+    optionStates[name] = value
+    savedSettings[name] = value
+    saveSettings()
+end
+
+local inputDebounce = {}
+
+local function createDebounce(key, duration)
+    if inputDebounce[key] then return false end
+    inputDebounce[key] = true
+    local inputType = UserInputService:GetLastInputType()
+    local adjustedDuration = duration or (inputType == Enum.UserInputType.Mouse or inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.MouseButton2) and 0.05 or 0.03
+    task.delay(adjustedDuration, function() inputDebounce[key] = nil end)
+    return true
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PhantomHub_V1"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local FloatingButton = Instance.new("TextButton")
+FloatingButton.Size = UDim2.new(0, 54, 0, 54)
+FloatingButton.Position = UDim2.new(0, 50, 0.5, -27)
+FloatingButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+FloatingButton.Text = ""
+FloatingButton.Parent = ScreenGui
+FloatingButton.AutoButtonColor = false
+
+local UICornerBtn = Instance.new("UICorner")
+UICornerBtn.CornerRadius = UDim.new(0, 12)
+UICornerBtn.Parent = FloatingButton
+
+local InnerBtn = Instance.new("Frame")
+InnerBtn.Size = UDim2.new(0, 48, 0, 48)
+InnerBtn.Position = UDim2.new(0.5, -24, 0.5, -24)
+InnerBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+InnerBtn.Parent = FloatingButton
+
+local UICornerInner = Instance.new("UICorner")
+UICornerInner.CornerRadius = UDim.new(0, 10)
+UICornerInner.Parent = InnerBtn
+
+local BtnLabel = Instance.new("TextLabel")
+BtnLabel.Size = UDim2.new(1, 0, 1, 0)
+BtnLabel.BackgroundTransparency = 1
+BtnLabel.Text = "P"
+BtnLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+BtnLabel.TextSize = 24
+BtnLabel.Font = Enum.Font.SourceSansBold
+BtnLabel.Parent = InnerBtn
+
+local StrokeBtn = Instance.new("UIStroke")
+StrokeBtn.Color = Color3.fromRGB(128, 128, 128)
+StrokeBtn.Thickness = 1
+StrokeBtn.Parent = FloatingButton
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 550, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+
+local UICornerFrame = Instance.new("UICorner")
+UICornerFrame.CornerRadius = UDim.new(0, 12)
+UICornerFrame.Parent = MainFrame
+
+local InnerFrame = Instance.new("Frame")
+InnerFrame.Size = UDim2.new(1, -6, 1, -6)
+InnerFrame.Position = UDim2.new(0, 3, 0, 3)
+InnerFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+InnerFrame.Parent = MainFrame
+
+local UICornerInnerF = Instance.new("UICorner")
+UICornerInnerF.CornerRadius = UDim.new(0, 10)
+UICornerInnerF.Parent = InnerFrame
+
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+TopBar.Parent = InnerFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+local ScriptTitle = Instance.new("TextLabel")
+ScriptTitle.Size = UDim2.new(0, 150, 1, 0)
+ScriptTitle.Position = UDim2.new(0, 10, 0, 0)
+ScriptTitle.Text = "Phantom Hub"
+ScriptTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ScriptTitle.Font = Enum.Font.SourceSansBold
+ScriptTitle.TextSize = 22
+ScriptTitle.TextXAlignment = Enum.TextXAlignment.Left
+ScriptTitle.BackgroundTransparency = 1
+ScriptTitle.Parent = TopBar
+
+local TitleStroke = Instance.new("UIStroke")
+TitleStroke.Color = Color3.fromRGB(30, 30, 30)
+TitleStroke.Thickness = 2
+TitleStroke.Parent = ScriptTitle
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 32, 0, 32)
+CloseBtn.Position = UDim2.new(1, -42, 0.5, -16)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.TextSize = 18
+CloseBtn.Parent = TopBar
+CloseBtn.AutoButtonColor = false
+
+local UICornerClose = Instance.new("UICorner")
+UICornerClose.CornerRadius = UDim.new(0, 8)
+UICornerClose.Parent = CloseBtn
+
+local CloseStroke = Instance.new("UIStroke")
+CloseStroke.Color = Color3.fromRGB(30, 30, 30)
+CloseStroke.Thickness = 2
+CloseStroke.Parent = CloseBtn
+
+local SideBar = Instance.new("Frame")
+SideBar.Size = UDim2.new(0, 140, 1, -45)
+SideBar.Position = UDim2.new(0, 0, 0, 45)
+SideBar.BackgroundTransparency = 1
+SideBar.Parent = InnerFrame
+
+local MainContent = Instance.new("ScrollingFrame")
+MainContent.Size = UDim2.new(1, -145, 1, -55)
+MainContent.Position = UDim2.new(0, 145, 0, 50)
+MainContent.BackgroundTransparency = 1
+MainContent.ScrollBarThickness = 2
+MainContent.CanvasSize = UDim2.new(0, 0, 0, 2000)
+MainContent.Parent = InnerFrame
+
+local options = {Main = {}, Buy = {}, Farm = {}, Config = {}, Credits = {}}
+local activeTab = "Main"
+
+local function createTabBtn(name, posIdx)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0.85, 0, 0, 40)
+    Btn.Position = UDim2.new(0.075, 0, 0, 20 + (posIdx * 50))
+    Btn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Text = name
+    Btn.Font = Enum.Font.SourceSansBold
+    Btn.TextSize = 18
+    Btn.Parent = SideBar
+    Btn.AutoButtonColor = false
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 8)
+
+    local BtnStroke = Instance.new("UIStroke")
+    BtnStroke.Color = Color3.fromRGB(30, 30, 30)
+    BtnStroke.Thickness = 2
+    BtnStroke.Parent = Btn
+
+    return Btn
+end
+
+local TabMain = createTabBtn("Main", 0)
+local TabBuy = createTabBtn("Buy ALL", 1)
+local TabFarm = createTabBtn("Farm", 2)
+local TabConfig = createTabBtn("Config", 3)
+local TabCredits = createTabBtn("Credits", 4)
+
+local function repositionElements(tab)
+    local yPos = 0
+    for _, elem in ipairs(options[tab]) do
+        if elem.Visible then
+            elem.Position = UDim2.new(0, 0, 0, yPos)
+            yPos = yPos + elem.Size.Y.Offset + 10
+        end
+    end
+    MainContent.CanvasSize = UDim2.new(0, 0, 0, yPos + 50)
+end
+
+local function connectButtonInput(button, callback)
+    local function execute()
+        if createDebounce(button.Name or tostring(button), 0.05) then
+            callback()
+        end
+    end
+
+    button.Activated:Connect(execute)
+    button.MouseButton1Click:Connect(execute)
+end
+
+local function createOption(name, startActive, tab, callback)
+    createOptionState(name, startActive)
+    local currentActive = optionStates[name]
+
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Container.Visible = (tab == activeTab)
+    Container.Parent = MainContent
+    Container.Name = name
+    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 10)
+
+    local ContainerStroke = Instance.new("UIStroke")
+    ContainerStroke.Color = Color3.fromRGB(30, 30, 30)
+    ContainerStroke.Thickness = 2
+    ContainerStroke.Parent = Container
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.6, 0, 1, 0)
+    Label.Position = UDim2.new(0.05, 0, 0, 0)
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Font = Enum.Font.SourceSans
+    Label.TextSize = 16
+    Label.Parent = Container
+
+    local SwitchBG = Instance.new("TextButton")
+    SwitchBG.Size = UDim2.new(0, 45, 0, 24)
+    SwitchBG.Position = UDim2.new(1, -55, 0.5, -12)
+    SwitchBG.BackgroundColor3 = currentActive and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(40, 40, 40)
+    SwitchBG.Text = ""
+    SwitchBG.Parent = Container
+    SwitchBG.AutoButtonColor = false
+    Instance.new("UICorner", SwitchBG).CornerRadius = UDim.new(1, 0)
+
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 18, 0, 18)
+    Circle.Position = currentActive and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Circle.Parent = SwitchBG
+    Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
+
+    local function toggleSwitch()
+        if createDebounce(name, 0.05) then
+            optionStates[name] = not optionStates[name]
+            setOptionState(name, optionStates[name])
+
+            Circle:TweenPosition(optionStates[name] and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9), "Out", "Quad", 0.2, true)
+            SwitchBG.BackgroundColor3 = optionStates[name] and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(40, 40, 40)
+
+            if callback then
+                task.wait(0.05)
+                task.spawn(function() callback(optionStates[name]) end)
+            end
+        end
+    end
+
+    SwitchBG.Activated:Connect(toggleSwitch)
+
+    if currentActive and callback then
+        task.spawn(function() callback(currentActive) end)
+    end
+
+    table.insert(options[tab], Container)
+    return function() return optionStates[name] end, Container, SwitchBG
+end
+
+local function createSlider(name, min, max, default, tab, callback)
+    createOptionState(name, default)
+    local currentVal = optionStates[name]
+
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0.95, 0, 0, 60)
+    Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Container.Visible = (tab == activeTab)
+    Container.Parent = MainContent
+    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 10)
+
+    local SliderStroke = Instance.new("UIStroke")
+    SliderStroke.Color = Color3.fromRGB(30, 30, 30)
+    SliderStroke.Thickness = 2
+    SliderStroke.Parent = Container
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.9, 0, 0.4, 0)
+    Label.Position = UDim2.new(0.05, 0, 0, 5)
+    Label.Text = name .. ": " .. tostring(currentVal)
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Font = Enum.Font.SourceSans
+    Label.TextSize = 16
+    Label.Parent = Container
+
+    local SliderBG = Instance.new("TextButton")
+    SliderBG.Size = UDim2.new(0.9, 0, 0, 6)
+    SliderBG.Position = UDim2.new(0.05, 0, 0.65, 0)
+    SliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    SliderBG.Text = ""
+    SliderBG.Parent = Container
+    SliderBG.AutoButtonColor = false
+    Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
+
+    local SliderFill = Instance.new("Frame")
+    local startScale = (currentVal - min) / (max - min)
+    SliderFill.Size = UDim2.new(startScale, 0, 1, 0)
+    SliderFill.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+    SliderFill.Parent = SliderBG
+    Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 14, 0, 14)
+    Circle.Position = UDim2.new(1, -7, 0.5, -7)
+    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Circle.Parent = SliderFill
+    Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
+
+    if callback then
+        task.spawn(function() callback(currentVal) end)
+    end
+
+    local dragging = false
+    local function updateSlider(input)
+        local relativeX = math.clamp(input.Position.X - SliderBG.AbsolutePosition.X, 0, SliderBG.AbsoluteSize.X)
+        local scale = relativeX / SliderBG.AbsoluteSize.X
+        SliderFill.Size = UDim2.new(scale, 0, 1, 0)
+        local value = math.floor(min + ((max - min) * scale))
+        Label.Text = name .. ": " .. tostring(value)
+
+        optionStates[name] = value
+        setOptionState(name, value)
+
+        if callback then callback(value) end
+    end
+
+    SliderBG.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateSlider(input)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging then
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Mouse or input.UserInputType == Enum.UserInputType.Touch then
+                updateSlider(input)
+            end
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    table.insert(options[tab], Container)
+end
+
+local function createActionButton(name, tab, callback)
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Container.Visible = (tab == activeTab)
+    Container.Parent = MainContent
+    Container.Name = name
+    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 10)
+
+    local ContainerStroke = Instance.new("UIStroke")
+    ContainerStroke.Color = Color3.fromRGB(30, 30, 30)
+    ContainerStroke.Thickness = 2
+    ContainerStroke.Parent = Container
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, 0, 1, 0)
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = Enum.TextXAlignment.Center
+    Label.TextYAlignment = Enum.TextYAlignment.Center
+    Label.Font = Enum.Font.SourceSansBold
+    Label.TextSize = 16
+    Label.Parent = Container
+
+    local ClickBtn = Instance.new("TextButton")
+    ClickBtn.Size = UDim2.new(1, 0, 1, 0)
+    ClickBtn.BackgroundTransparency = 1
+    ClickBtn.Text = ""
+    ClickBtn.Parent = Container
+    ClickBtn.AutoButtonColor = false
+
+    local function execute()
+        if createDebounce(name, 0.05) then
+            callback()
+        end
+    end
+
+    ClickBtn.Activated:Connect(execute)
+
+    table.insert(options[tab], Container)
+end
+
+local function createInfoBox(title, desc, tab, isButton, linkToCopy)
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0.95, 0, 0, 50)
+    Container.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    Container.Visible = (tab == activeTab)
+    Container.Parent = MainContent
+    Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 10)
+
+    local InfoStroke = Instance.new("UIStroke")
+    InfoStroke.Color = Color3.fromRGB(30, 30, 30)
+    InfoStroke.Thickness = 2
+    InfoStroke.Parent = Container
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(0.9, 0, 0.5, 0)
+    TitleLabel.Position = UDim2.new(0.05, 0, 0, 5)
+    TitleLabel.Text = title
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Font = Enum.Font.SourceSansBold
+    TitleLabel.TextSize = 16
+    TitleLabel.Parent = Container
+
+    local DescLabel = Instance.new("TextLabel")
+    DescLabel.Size = UDim2.new(0.9, 0, 0.5, 0)
+    DescLabel.Position = UDim2.new(0.05, 0, 0.5, -2)
+    DescLabel.Text = desc
+    DescLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    DescLabel.BackgroundTransparency = 1
+    DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DescLabel.Font = Enum.Font.SourceSans
+    DescLabel.TextSize = 14
+    DescLabel.Parent = Container
+
+    if isButton then
+        local ClickBtn = Instance.new("TextButton")
+        ClickBtn.Size = UDim2.new(1, 0, 1, 0)
+        ClickBtn.BackgroundTransparency = 1
+        ClickBtn.Text = ""
+        ClickBtn.Parent = Container
+        ClickBtn.MouseButton1Click:Connect(function()
+            if type(setclipboard) == "function" then pcall(function() setclipboard(linkToCopy) end) end
+        end)
+    end
+
+    table.insert(options[tab], Container)
+end
+
+local isAutoRebirth = createOption("Auto Rebirth", false, "Main", function(active)
+    if active then
+        task.spawn(function()
+            while optionStates["Auto Rebirth"] do
+                task.wait(0.5)
+                pcall(function()
+                    local RebirthModule = require(ReplicatedStorage:WaitForChild("RebirthModule"))
+                    local PlayerStats = Player:WaitForChild("leaderstats")
+                    local Cash = PlayerStats:WaitForChild("Cash").Value
+                    local Rebirths = PlayerStats:WaitForChild("Rebirths").Value
+                    
+                    local CurrentRebirth = RebirthModule.Rebirths[Rebirths + 1]
+                    if not CurrentRebirth then return end
+                    
+                    local HasMoney = Cash >= (CurrentRebirth.Requirements.Cash or 0)
+                    local HasBrainrots = true
+                    
+                    if CurrentRebirth.Requirements.Brainrots then
+                        for _, BrainrotNeeded in ipairs(CurrentRebirth.Requirements.Brainrots) do
+                            local PlayerPlot = Player:GetAttribute("PlotName")
+                            if not PlayerPlot or PlayerPlot == "" then
+                                HasBrainrots = false
+                                break
+                            end
+                            local PlotModel = workspace:FindFirstChild("Plots") and workspace.Plots:FindFirstChild(PlayerPlot)
+                            if not PlotModel then
+                                HasBrainrots = false
+                                break
+                            end
+                            local PlotSlots = PlotModel:FindFirstChild("PlotSlots") or PlotModel:FindFirstChild("Slots")
+                            if not PlotSlots then
+                                HasBrainrots = false
+                                break
+                            end
+                            
+                            local Found = false
+                            for _, Slot in ipairs(PlotSlots:GetChildren()) do
+                                if Slot:GetAttribute("BrainrotName") == BrainrotNeeded or Slot.Name == BrainrotNeeded then
+                                    Found = true
+                                    break
+                                end
+                            end
+                            if not Found then
+                                HasBrainrots = false
+                                break
+                            end
+                        end
+                    end
+                    
+                    if HasMoney and HasBrainrots then
+                        local RebirthRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RebirthEvent")
+                        RebirthRemote:FireServer()
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+createActionButton("Auto Rejoin", "Config", function()
+    TeleportService:Teleport(game.PlaceId)
+end)
+
+local isInfiniteJump = createOption("Infinite Jump", false, "Config")
+
+UserInputService.JumpRequest:Connect(function()
+    if isInfiniteJump() then
+        local character = Player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+
+local isAntiAFK = createOption("Anti AFK", false, "Config")
+
+local VirtualUser = game:GetService("VirtualUser")
+Player.Idled:Connect(function()
+    if isAntiAFK() then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    end
+end)
+
+local isAntiCheat = createOption("Anti Cheat", false, "Config")
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    if isAntiCheat() then
+        local method = getnamecallmethod()
+        if method == "FireServer" and tostring(self) == "Cheat" then
+            return nil
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
+local isSpeedEnabled = createOption("Enable Speed", false, "Config")
+local customSpeedVal = 26
+
+createSlider("Speed", 1, 500, 26, "Config", function(val)
+    customSpeedVal = val
+end)
+
+RunService.Heartbeat:Connect(function()
+    local char = Player.Character
+    if char and char:FindFirstChild("Humanoid") then
+        if isSpeedEnabled() then
+            char.Humanoid.WalkSpeed = customSpeedVal
+        else
+            char.Humanoid.WalkSpeed = 26
+        end
+    end
+end)
+
+local isFlyActive = false
+local flySpeed = 32
+local bg, bv
+
+local isFly = createOption("Fly", false, "Config", function(active)
+    isFlyActive = active
+    if active then
+        local char = Player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local root = char.HumanoidRootPart
+            if not root:FindFirstChild("FlyVel") then
+                bv = Instance.new("BodyVelocity")
+                bv.Name = "FlyVel"
+                bv.Velocity = Vector3.new(0, 0, 0)
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Parent = root
+            end
+            if not root:FindFirstChild("FlyGyro") then
+                bg = Instance.new("BodyGyro")
+                bg.Name = "FlyGyro"
+                bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+                bg.CFrame = root.CFrame
+                bg.Parent = root
+            end
+        end
+    else
+        local char = Player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local root = char.HumanoidRootPart
+            local vel = root:FindFirstChild("FlyVel")
+            local gyro = root:FindFirstChild("FlyGyro")
+            if vel then vel:Destroy() end
+            if gyro then gyro:Destroy() end
+            bv = nil
+            bg = nil
+        end
+    end
+end)
+
+createSlider("Fly Speed", 1, 500, 32, "Config", function(val)
+    flySpeed = val
+end)
+
+RunService.Heartbeat:Connect(function()
+    if isFlyActive and bg and bv then
+        local cam = workspace.CurrentCamera
+        local char = Player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                local moveDir = hum.MoveDirection
+                if moveDir.Magnitude > 0 then
+                    local camDir = cam.CFrame.LookVector
+                    local camRight = cam.CFrame.RightVector
+                    
+                    local flatLook = Vector3.new(camDir.X, 0, camDir.Z)
+                    if flatLook.Magnitude > 0.001 then
+                        flatLook = flatLook.Unit
+                    else
+                        flatLook = Vector3.new(cam.CFrame.UpVector.X, 0, cam.CFrame.UpVector.Z).Unit * -math.sign(camDir.Y)
+                    end
+                    
+                    local flatRight = Vector3.new(camRight.X, 0, camRight.Z)
+                    if flatRight.Magnitude > 0.001 then
+                        flatRight = flatRight.Unit
+                    else
+                        flatRight = Vector3.new(1, 0, 0)
+                    end
+                    
+                    local forwardInput = moveDir:Dot(flatLook)
+                    local rightInput = moveDir:Dot(flatRight)
+                    
+                    bv.Velocity = (camDir * forwardInput + camRight * rightInput) * flySpeed
+                else
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                end
+                bg.CFrame = cam.CFrame
+            end
+        end
+    end
+end)
+
+local noclipEnabled = false
+local noclipParts = {}
+
+local isNoclip = createOption("Noclip", false, "Config", function(active)
+    noclipEnabled = active
+    if active then
+        local char = Player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    noclipParts[part] = part.CanCollide
+                    part.CanCollide = false
+                end
+            end
+        end
+    else
+        for part, canCollide in pairs(noclipParts) do
+            if part and part.Parent then
+                part.CanCollide = canCollide
+            end
+        end
+        noclipParts = {}
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if noclipEnabled then
+        local char = Player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+local shiftLockSystemEnabled = false
+local shiftLockActive = false
+local shiftLockGui = nil
+local shiftLockBtn = nil
+local shiftLockConnection = nil
+local TweenService = game:GetService("TweenService")
+
+local function getCharacterForShiftLock()
+    local character = Player.Character or Player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local root = character:WaitForChild("HumanoidRootPart")
+    return character, humanoid, root
+end
+
+local function enableShiftLockSystem()
+    local character, humanoid, root = getCharacterForShiftLock()
+    
+    shiftLockActive = true
+    if shiftLockBtn then
+        shiftLockBtn.Image = "rbxassetid://139211296111194"
+    end
+    
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    
+    humanoid.AutoRotate = false
+    
+    if shiftLockConnection then shiftLockConnection:Disconnect() end
+    
+    shiftLockConnection = RunService.RenderStepped:Connect(function()
+        if shiftLockActive and shiftLockSystemEnabled then
+            local camera = workspace.CurrentCamera
+            local lookVector = camera.CFrame.LookVector
+            local flatLook = Vector3.new(lookVector.X, 0, lookVector.Z)
+            
+            if flatLook.Magnitude > 0.001 then
+                flatLook = flatLook.Unit
+                root.CFrame = CFrame.lookAt(root.Position, root.Position + flatLook)
+            end
+        end
+    end)
+end
+
+local function disableShiftLockSystem()
+    local character, humanoid, root = getCharacterForShiftLock()
+    
+    shiftLockActive = false
+    if shiftLockBtn then
+        shiftLockBtn.Image = "rbxassetid://105987953182009"
+    end
+    
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    
+    humanoid.AutoRotate = true
+    
+    if shiftLockConnection then
+        shiftLockConnection:Disconnect()
+        shiftLockConnection = nil
+    end
+end
+
+local isShiftLock = createOption("Enable Shift Lock", false, "Config", function(active)
+    if active then
+        shiftLockSystemEnabled = true
+        
+        if not shiftLockGui then
+            shiftLockGui = Instance.new("ScreenGui")
+            shiftLockGui.Name = "ShiftLockGUI"
+            shiftLockGui.ResetOnSpawn = false
+            shiftLockGui.Parent = PlayerGui
+            
+            shiftLockBtn = Instance.new("ImageButton")
+            shiftLockBtn.Size = UDim2.new(0, 50, 0, 50)
+            shiftLockBtn.Position = UDim2.new(0.5, -25, 0.76, 0)
+            shiftLockBtn.BackgroundTransparency = 1
+            shiftLockBtn.Image = "rbxassetid://139211296111194"
+            shiftLockBtn.Parent = shiftLockGui
+            
+            shiftLockBtn.Activated:Connect(function()
+                if shiftLockActive then
+                    disableShiftLockSystem()
+                else
+                    enableShiftLockSystem()
+                end
+            end)
+        end
+        
+        enableShiftLockSystem()
+    else
+        shiftLockSystemEnabled = false
+        
+        if shiftLockConnection then
+            shiftLockConnection:Disconnect()
+            shiftLockConnection = nil
+        end
+        
+        if shiftLockGui then
+            shiftLockGui:Destroy()
+            shiftLockGui = nil
+            shiftLockBtn = nil
+        end
+        
+        local character = Player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.AutoRotate = true
+            end
+        end
+        
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        shiftLockActive = false
+    end
+end)
+
+Player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if shiftLockActive and shiftLockSystemEnabled then
+        enableShiftLockSystem()
+    end
+end)
+
+createInfoBox("By: Cleiton10HDx", "Script created by this user.", "Credits", false)
+createInfoBox("Discord", "My Discord server.", "Credits", true, "https://discord.gg/72P6NhC5Pf")
+
+local empty1 = createOption("Empty Slot 1", false, "Buy")
+local empty2 = createOption("Empty Slot 2", false, "Farm")
+
+function showTab(tabName)
+    activeTab = tabName
+    for t, list in pairs(options) do
+        for _, v in pairs(list) do
+            v.Visible = (t == tabName)
+        end
+    end
+    repositionElements(tabName)
+end
+
+TabMain.Activated:Connect(function() showTab("Main") end)
+TabBuy.Activated:Connect(function() showTab("Buy") end)
+TabFarm.Activated:Connect(function() showTab("Farm") end)
+TabConfig.Activated:Connect(function() showTab("Config") end)
+TabCredits.Activated:Connect(function() showTab("Credits") end)
+
+local draggingBtn, dragStartBtn, startPosBtn
+FloatingButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingBtn = true
+        dragStartBtn = input.Position
+        startPosBtn = FloatingButton.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingBtn and dragStartBtn then
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - dragStartBtn
+            FloatingButton.Position = UDim2.new(startPosBtn.X.Scale, startPosBtn.X.Offset + delta.X, startPosBtn.Y.Scale, startPosBtn.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingBtn = false
+    end
+end)
+
+FloatingButton.Activated:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+CloseBtn.Activated:Connect(function()
+    MainFrame.Visible = false
+end)
+
+repositionElements("Main")
