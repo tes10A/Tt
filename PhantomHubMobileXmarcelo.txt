@@ -514,10 +514,31 @@ local isAutoRebirth = createOption("Auto Rebirth", false, "Main", function(activ
                             
                             local Found = false
                             for _, Slot in ipairs(PlotSlots:GetChildren()) do
-                                if Slot:GetAttribute("BrainrotName") == BrainrotNeeded or Slot.Name == BrainrotNeeded then
+                                local SlotBrainrotName = Slot:GetAttribute("BrainrotName")
+                                if SlotBrainrotName and tostring(SlotBrainrotName or ""):gsub(" ", "_"):gsub("-", "_"):lower() == tostring(BrainrotNeeded or ""):gsub(" ", "_"):gsub("-", "_"):lower() then
                                     Found = true
                                     break
                                 end
+                                local SlotModelName = (Slot.Name or ""):gsub("^Rainbow%s+", ""):gsub("^Gold%s+", ""):gsub("^Diamond%s+", ""):gsub("^Galaxy%s+", ""):gsub("^Lava%s+", "")
+                                if tostring(SlotModelName):gsub(" ", "_"):gsub("-", "_"):lower() == tostring(BrainrotNeeded or ""):gsub(" ", "_"):gsub("-", "_"):lower() then
+                                    Found = true
+                                    break
+                                end
+                                for _, ChildModel in ipairs(Slot:GetChildren()) do
+                                    if ChildModel:IsA("Model") then
+                                        local ChildBrainrotName = ChildModel:GetAttribute("BrainrotName")
+                                        if ChildBrainrotName and tostring(ChildBrainrotName or ""):gsub(" ", "_"):gsub("-", "_"):lower() == tostring(BrainrotNeeded or ""):gsub(" ", "_"):gsub("-", "_"):lower() then
+                                            Found = true
+                                            break
+                                        end
+                                        local ChildName = (ChildModel.Name or ""):gsub("^Rainbow%s+", ""):gsub("^Gold%s+", ""):gsub("^Diamond%s+", ""):gsub("^Galaxy%s+", ""):gsub("^Lava%s+", "")
+                                        if tostring(ChildName):gsub(" ", "_"):gsub("-", "_"):lower() == tostring(BrainrotNeeded or ""):gsub(" ", "_"):gsub("-", "_"):lower() then
+                                            Found = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if Found then break end
                             end
                             if not Found then
                                 HasBrainrots = false
@@ -529,6 +550,7 @@ local isAutoRebirth = createOption("Auto Rebirth", false, "Main", function(activ
                     if HasMoney and HasBrainrots then
                         local RebirthRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RebirthEvent")
                         RebirthRemote:FireServer()
+                        task.wait(1)
                     end
                 end)
             end
@@ -536,8 +558,84 @@ local isAutoRebirth = createOption("Auto Rebirth", false, "Main", function(activ
     end
 end)
 
-createActionButton("Auto Rejoin", "Config", function()
-    TeleportService:Teleport(game.PlaceId)
+local isAutoSpeed = createOption("Auto Speed", false, "Buy", function(active)
+    if active then
+        task.spawn(function()
+            while optionStates["Auto Speed"] do
+                task.wait(1)
+                pcall(function()
+                    local Monetization = require(ReplicatedStorage:WaitForChild("Monetization"))
+                    local PlayerStats = Player:WaitForChild("leaderstats")
+                    local Cash = PlayerStats:WaitForChild("Cash").Value
+                    
+                    if not Monetization.Cash then return end
+                    
+                    local speedItems = {}
+                    for key, item in pairs(Monetization.Cash) do
+                        if item and item.Name and (string.find(item.Name:lower(), "speed") or string.find(item.Name:lower(), "spd")) then
+                            table.insert(speedItems, {key = key, name = item.Name, productId = item.ProductId})
+                        end
+                    end
+                    
+                    table.sort(speedItems, function(a, b)
+                        local aValue = tonumber(a.name:match("%+(%d+)")) or 0
+                        local bValue = tonumber(b.name:match("%+(%d+)")) or 0
+                        return aValue > bValue
+                    end)
+                    
+                    local purchaseRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("PurchaseCash")
+                    
+                    for _, item in ipairs(speedItems) do
+                        if Cash >= 1 then
+                            purchaseRemote:FireServer(item.productId)
+                            task.wait(0.5)
+                            Cash = PlayerStats:WaitForChild("Cash").Value
+                        else
+                            break
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+local isAutoCarry = createOption("Auto Carry", false, "Buy", function(active)
+    if active then
+        task.spawn(function()
+            while optionStates["Auto Carry"] do
+                task.wait(1)
+                pcall(function()
+                    local Monetization = require(ReplicatedStorage:WaitForChild("Monetization"))
+                    local PlayerStats = Player:WaitForChild("leaderstats")
+                    local Cash = PlayerStats:WaitForChild("Cash").Value
+                    
+                    if not Monetization.Cash then return end
+                    
+                    local carryItems = {}
+                    for key, item in pairs(Monetization.Cash) do
+                        if item and item.Name and (string.find(item.Name:lower(), "capacity") or string.find(item.Name:lower(), "carry") or string.find(item.Name:lower(), "bag")) then
+                            table.insert(carryItems, {key = key, name = item.Name, productId = item.ProductId})
+                        end
+                    end
+                    
+                    if #carryItems > 0 then
+                        local purchaseRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("PurchaseCash")
+                        
+                        for _, item in ipairs(carryItems) do
+                            if Cash >= 1 then
+                                purchaseRemote:FireServer(item.productId)
+                                task.wait(0.5)
+                                Cash = PlayerStats:WaitForChild("Cash").Value
+                            else
+                                break
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
 end)
 
 local isInfiniteJump = createOption("Infinite Jump", false, "Config")
@@ -840,11 +938,12 @@ Player.CharacterAdded:Connect(function()
     end
 end)
 
+createActionButton("Auto Rejoin", "Config", function()
+    TeleportService:Teleport(game.PlaceId)
+end)
+
 createInfoBox("By: Cleiton10HDx", "Script created by this user.", "Credits", false)
 createInfoBox("Discord", "My Discord server.", "Credits", true, "https://discord.gg/72P6NhC5Pf")
-
-local empty1 = createOption("Empty Slot 1", false, "Buy")
-local empty2 = createOption("Empty Slot 2", false, "Farm")
 
 function showTab(tabName)
     activeTab = tabName
