@@ -54,7 +54,7 @@ if currentGameId ~= CORRECT_GAME_ID and not gameIdCheckDone then
     notificationLabel.Position = UDim2.new(0.05, 0, 0.06, 0)
     notificationLabel.BackgroundTransparency = 1
     notificationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notificationLabel.TextSize = rpx(14)
+    notificationLabel.TextSize = rpx(23)
     notificationLabel.Font = Enum.Font.Gotham
     notificationLabel.Text = "This script only works in the correct game"
     notificationLabel.TextWrapped = true
@@ -145,6 +145,20 @@ local function setOptionState(name, value)
     saveSettings()
 end
 
+local function saveCurrentSettings()
+    for name, value in pairs(optionStates) do
+        if name ~= "_debounce" then
+            savedSettings[name] = value
+        end
+    end
+
+    for farmName, value in pairs(selectedFarmOptions or {}) do
+        savedSettings["FarmOption_" .. farmName] = value
+    end
+
+    saveSettings()
+end
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "PhantomHub_V2"
 ScreenGui.ResetOnSpawn = false
@@ -220,14 +234,26 @@ local Title = Instance.new("TextLabel")
 Title.Name = "Title"
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0.02, 0, 0, 0)
-Title.Size = UDim2.new(1, 0, 1, 0)
+Title.Size = UDim2.new(0.9, 0, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "Phantom Hub"
+Title.Text = "Phantom Hub | Swing Obby for brainrots"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.TextSize = rpx(16)
+Title.TextSize = rpx(20)
 Title.Parent = TopBar
 Title.ZIndex = 999999
+
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.BackgroundTransparency = 1
+MinimizeButton.Position = UDim2.new(0.84, 0, 0, 0)
+MinimizeButton.Size = UDim2.new(0.08, 0, 1, 0)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = rpx(28)
+MinimizeButton.Parent = TopBar
+MinimizeButton.ZIndex = 999999
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
@@ -237,9 +263,114 @@ CloseButton.Size = UDim2.new(0.08, 0, 1, 0)
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = rpx(18)
+CloseButton.TextSize = rpx(24)
 CloseButton.Parent = TopBar
 CloseButton.ZIndex = 999999
+
+local ConfirmShadow = Instance.new("Frame")
+ConfirmShadow.Name = "ConfirmShadow"
+ConfirmShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+ConfirmShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+ConfirmShadow.Size = UDim2.new(0.52, 0, 0.39, 0)
+ConfirmShadow.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ConfirmShadow.BorderSizePixel = 0
+ConfirmShadow.Visible = false
+ConfirmShadow.Parent = MainFrame
+ConfirmShadow.ZIndex = 1000000
+
+local ConfirmOuterStroke = Instance.new("UIStroke")
+ConfirmOuterStroke.Color = Color3.fromRGB(60, 60, 60)
+ConfirmOuterStroke.Thickness = 3
+ConfirmOuterStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ConfirmOuterStroke.Parent = ConfirmShadow
+
+local ConfirmFrame = Instance.new("Frame")
+ConfirmFrame.Name = "ConfirmFrame"
+ConfirmFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+ConfirmFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+ConfirmFrame.Size = UDim2.new(0.5, 0, 0.37, 0)
+ConfirmFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ConfirmFrame.BorderSizePixel = 0
+ConfirmFrame.Visible = false
+ConfirmFrame.Parent = MainFrame
+ConfirmFrame.ZIndex = 1000001
+
+local ConfirmInnerStroke = Instance.new("UIStroke")
+ConfirmInnerStroke.Color = Color3.fromRGB(120, 120, 120)
+ConfirmInnerStroke.Thickness = 2
+ConfirmInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ConfirmInnerStroke.Parent = ConfirmFrame
+
+local ConfirmTopBar = Instance.new("Frame")
+ConfirmTopBar.Name = "ConfirmTopBar"
+ConfirmTopBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ConfirmTopBar.BorderSizePixel = 0
+ConfirmTopBar.Size = UDim2.new(1, 0, 0.28, 0)
+ConfirmTopBar.Position = UDim2.new(0, 0, 0, 0)
+ConfirmTopBar.Parent = ConfirmFrame
+ConfirmTopBar.ZIndex = 1000002
+
+local ConfirmTitle = Instance.new("TextLabel")
+ConfirmTitle.Name = "ConfirmTitle"
+ConfirmTitle.BackgroundTransparency = 1
+ConfirmTitle.Size = UDim2.new(1, 0, 1, 0)
+ConfirmTitle.Position = UDim2.new(0, 0, 0, 0)
+ConfirmTitle.Font = Enum.Font.GothamBold
+ConfirmTitle.Text = "Would you like to close the script?"
+ConfirmTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmTitle.TextSize = rpx(18)
+ConfirmTitle.TextWrapped = true
+ConfirmTitle.Parent = ConfirmTopBar
+ConfirmTitle.ZIndex = 1000003
+
+local ConfirmDescription = Instance.new("TextLabel")
+ConfirmDescription.Name = "ConfirmDescription"
+ConfirmDescription.BackgroundTransparency = 1
+ConfirmDescription.Size = UDim2.new(0.88, 0, 0.32, 0)
+ConfirmDescription.Position = UDim2.new(0.06, 0, 0.33, 0)
+ConfirmDescription.Font = Enum.Font.SourceSans
+ConfirmDescription.Text = "This will remove the menu and stop active features. Run the script again to restore it."
+ConfirmDescription.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmDescription.TextSize = rpx(17)
+ConfirmDescription.TextWrapped = true
+ConfirmDescription.Parent = ConfirmFrame
+ConfirmDescription.ZIndex = 1000002
+
+local ConfirmYesButton = Instance.new("TextButton")
+ConfirmYesButton.Name = "ConfirmYesButton"
+ConfirmYesButton.Size = UDim2.new(0.34, 0, 0.2, 0)
+ConfirmYesButton.Position = UDim2.new(0.1, 0, 0.72, 0)
+ConfirmYesButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ConfirmYesButton.Text = "Yes"
+ConfirmYesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmYesButton.Font = Enum.Font.GothamBold
+ConfirmYesButton.TextSize = rpx(17)
+ConfirmYesButton.AutoButtonColor = false
+ConfirmYesButton.Parent = ConfirmFrame
+ConfirmYesButton.ZIndex = 1000002
+
+local ConfirmYesStroke = Instance.new("UIStroke")
+ConfirmYesStroke.Color = Color3.fromRGB(120, 120, 120)
+ConfirmYesStroke.Thickness = 1
+ConfirmYesStroke.Parent = ConfirmYesButton
+
+local ConfirmNoButton = Instance.new("TextButton")
+ConfirmNoButton.Name = "ConfirmNoButton"
+ConfirmNoButton.Size = UDim2.new(0.34, 0, 0.2, 0)
+ConfirmNoButton.Position = UDim2.new(0.56, 0, 0.72, 0)
+ConfirmNoButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ConfirmNoButton.Text = "No"
+ConfirmNoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConfirmNoButton.Font = Enum.Font.GothamBold
+ConfirmNoButton.TextSize = rpx(17)
+ConfirmNoButton.AutoButtonColor = false
+ConfirmNoButton.Parent = ConfirmFrame
+ConfirmNoButton.ZIndex = 1000002
+
+local ConfirmNoStroke = Instance.new("UIStroke")
+ConfirmNoStroke.Color = Color3.fromRGB(120, 120, 120)
+ConfirmNoStroke.Thickness = 1
+ConfirmNoStroke.Parent = ConfirmNoButton
 
 local TabContainer = Instance.new("Frame")
 TabContainer.Name = "TabContainer"
@@ -359,9 +490,50 @@ MainContent.Parent = ContentContainer
 MainContent.ZIndex = 999999
 
 local ContentListLayout = Instance.new("UIListLayout")
-ContentListLayout.Padding = UDim.new(0, rpx(8))
 ContentListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ContentListLayout.Parent = MainContent
+
+local function getOptionFrameHeight()
+    local height = MainContent.AbsoluteSize.Y
+    if height > 0 then
+        return math.max(rpx(48), math.floor(height * 0.25 + 0.5))
+    end
+    return rpx(88)
+end
+
+local function getOptionFrameSize()
+    return UDim2.new(0.959, 0, 0, getOptionFrameHeight())
+end
+
+local function getContentPadding()
+    local height = MainContent.AbsoluteSize.Y
+    if height > 0 then
+        return math.max(1, math.floor(height * 0.022 + 0.5))
+    end
+    return rpx(8)
+end
+
+local function getDropdownPadding()
+    return math.max(1, math.floor(getContentPadding() * 0.5 + 0.5))
+end
+
+local function getDropdownContentHeight(count)
+    return (count * getOptionFrameHeight()) + (math.max(count - 1, 0) * getDropdownPadding())
+end
+
+local function getDropdownVisibleHeight(count, maxVisible)
+    return getDropdownContentHeight(math.min(count, maxVisible))
+end
+
+ContentListLayout.Padding = UDim.new(0, getContentPadding())
+
+local function refreshMainCanvas()
+    task.defer(function()
+        MainContent.CanvasSize = UDim2.new(0, 0, 0, ContentListLayout.AbsoluteContentSize.Y + rpx(20))
+    end)
+end
+
+ContentListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshMainCanvas)
 
 local tabs = {}
 local activeTab = "Main"
@@ -372,7 +544,10 @@ local connectionStorage = {}
 local optionElementsMap = {}
 local optionTabMap = {}
 local elementCategoryMap = {}
+local categoryChildren = {}
 local categoryStates = {}
+local categoryHeaders = {}
+local categoryArrows = {}
 local categoryHeaderKeys = {}
 local currentCategoryByTab = {}
 local searchOnlyElements = {}
@@ -393,7 +568,12 @@ local function registerElement(tabName, element, elementName)
 
     local categoryName = currentCategoryByTab[tabName]
     if categoryName then
-        elementCategoryMap[element] = getCategoryKey(tabName, categoryName)
+        local key = getCategoryKey(tabName, categoryName)
+        elementCategoryMap[element] = key
+        if not categoryChildren[key] then
+            categoryChildren[key] = {}
+        end
+        table.insert(categoryChildren[key], element)
     end
 end
 
@@ -449,7 +629,7 @@ local function showNotification(title, iconId, duration)
 	notificationLabel.Position = UDim2.new(0.25, 0, 0.06, 0)
 	notificationLabel.BackgroundTransparency = 1
 	notificationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	notificationLabel.TextSize = rpx(14)
+	notificationLabel.TextSize = rpx(23)
 	notificationLabel.Font = Enum.Font.Gotham
 	notificationLabel.Text = title
 	notificationLabel.TextWrapped = true
@@ -538,7 +718,7 @@ local function createTab(name, iconId, position)
     TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     TabButton.Text = ""
     TabButton.Font = Enum.Font.SourceSansBold
-    TabButton.TextSize = rpx(16)
+    TabButton.TextSize = rpx(21)
     TabButton.Parent = TabContainer
     TabButton.AutoButtonColor = false
     TabButton.ZIndex = 999999
@@ -568,7 +748,7 @@ local function createTab(name, iconId, position)
     TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TextLabel.TextXAlignment = Enum.TextXAlignment.Left
     TextLabel.Font = Enum.Font.SourceSansBold
-    TextLabel.TextSize = rpx(14)
+    TextLabel.TextSize = rpx(21)
     TextLabel.Parent = TabButton
     TextLabel.ZIndex = 999999
 
@@ -619,7 +799,7 @@ local function createOption(name, startActive, tabName, callback)
     local currentActive = optionStates[name]
 
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.959, 0, 0, 53)
+    Container.Size = getOptionFrameSize()
     Container.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     Container.Parent = MainContent
     Container.Name = tostring(optionCounter)
@@ -644,13 +824,13 @@ local function createOption(name, startActive, tabName, callback)
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Font = Enum.Font.SourceSans
-    Label.TextSize = rpx(14)
+    Label.TextSize = rpx(23)
     Label.Parent = Container
     Label.ZIndex = 999999
 
     local SwitchBG = Instance.new("TextButton")
-    SwitchBG.Size = UDim2.new(0, 45, 0, 24)
-    SwitchBG.Position = UDim2.new(1, -55, 0.5, -12)
+    SwitchBG.Size = UDim2.new(0.15, 0, 0.45, 0)
+    SwitchBG.Position = UDim2.new(0.8, 0, 0.275, 0)
     SwitchBG.BackgroundColor3 = currentActive and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
     SwitchBG.Text = ""
     SwitchBG.Parent = Container
@@ -667,8 +847,8 @@ local function createOption(name, startActive, tabName, callback)
     SwitchStroke.Parent = SwitchBG
 
     local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 18, 0, 18)
-    Circle.Position = currentActive and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+    Circle.Size = UDim2.new(0.38, 0, 0.76, 0)
+    Circle.Position = currentActive and UDim2.new(0.56, 0, 0.12, 0) or UDim2.new(0.06, 0, 0.12, 0)
     Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Circle.Parent = SwitchBG
     Circle.ZIndex = 999999
@@ -682,7 +862,7 @@ local function createOption(name, startActive, tabName, callback)
             optionStates[name] = not optionStates[name]
             setOptionState(name, optionStates[name])
 
-            Circle:TweenPosition(optionStates[name] and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9), "Out", "Quad", 0.2, true)
+            Circle:TweenPosition(optionStates[name] and UDim2.new(0.56, 0, 0.12, 0) or UDim2.new(0.06, 0, 0.12, 0), "Out", "Quad", 0.2, true)
             SwitchBG.BackgroundColor3 = optionStates[name] and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
 
             if callback then
@@ -721,7 +901,7 @@ local function createSlider(name, min, max, default, tabName, callback)
     local currentVal = optionStates[name]
 
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.959, 0, 0, 70)
+    Container.Size = getOptionFrameSize()
     Container.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     Container.Parent = MainContent
     Container.LayoutOrder = optionCounter
@@ -745,7 +925,7 @@ local function createSlider(name, min, max, default, tabName, callback)
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Font = Enum.Font.SourceSans
-    Label.TextSize = rpx(14)
+    Label.TextSize = rpx(23)
     Label.Parent = Container
     Label.ZIndex = 999999
 
@@ -774,10 +954,11 @@ local function createSlider(name, min, max, default, tabName, callback)
     FillCorner.Parent = SliderFill
 
     local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 14, 0, 14)
-    Circle.Position = UDim2.new(1, -7, 0.5, -7)
+    Circle.AnchorPoint = Vector2.new(0.5, 0.5)
+    Circle.Size = UDim2.new(0, rpx(14), 0, rpx(14))
+    Circle.Position = UDim2.new(startScale, 0, 0.5, 0)
     Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Circle.Parent = SliderFill
+    Circle.Parent = SliderBG
     Circle.ZIndex = 999999
 
     local CircleCorner = Instance.new("UICorner")
@@ -793,6 +974,7 @@ local function createSlider(name, min, max, default, tabName, callback)
         local relativeX = math.clamp(input.Position.X - SliderBG.AbsolutePosition.X, 0, SliderBG.AbsoluteSize.X)
         local scale = relativeX / SliderBG.AbsoluteSize.X
         SliderFill.Size = UDim2.new(scale, 0, 1, 0)
+        Circle.Position = UDim2.new(scale, 0, 0.5, 0)
         local value = math.floor(min + ((max - min) * scale))
         Label.Text = name .. ": " .. tostring(value)
 
@@ -834,7 +1016,7 @@ local function createInfoBox(title, desc, tabName, isButton, linkToCopy)
     optionCounter = optionCounter + 1
     
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.959, 0, 0, 50)
+    Container.Size = getOptionFrameSize()
     Container.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     Container.Parent = MainContent
     Container.LayoutOrder = optionCounter
@@ -858,7 +1040,7 @@ local function createInfoBox(title, desc, tabName, isButton, linkToCopy)
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     TitleLabel.Font = Enum.Font.SourceSansBold
-    TitleLabel.TextSize = rpx(14)
+    TitleLabel.TextSize = rpx(23)
     TitleLabel.Parent = Container
     TitleLabel.ZIndex = 999999
 
@@ -870,7 +1052,7 @@ local function createInfoBox(title, desc, tabName, isButton, linkToCopy)
     DescLabel.BackgroundTransparency = 1
     DescLabel.TextXAlignment = Enum.TextXAlignment.Left
     DescLabel.Font = Enum.Font.SourceSans
-    DescLabel.TextSize = rpx(11)
+    DescLabel.TextSize = rpx(18)
     DescLabel.Parent = Container
     DescLabel.ZIndex = 999999
 
@@ -898,7 +1080,7 @@ local function createSpecialButton(name, tabName, callback)
     optionCounter = optionCounter + 1
     
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.959, 0, 0, 50)
+    Container.Size = getOptionFrameSize()
     Container.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     Container.Parent = MainContent
     Container.Name = tostring(optionCounter)
@@ -922,7 +1104,7 @@ local function createSpecialButton(name, tabName, callback)
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Center
     Label.Font = Enum.Font.SourceSans
-    Label.TextSize = rpx(14)
+    Label.TextSize = rpx(23)
     Label.Parent = Container
     Label.ZIndex = 999999
 
@@ -943,7 +1125,7 @@ local function createSearchToggleOption(name, tabName, isEnabled, toggleCallback
     optionCounter = optionCounter + 1
 
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.959, 0, 0, rpx(53))
+    Container.Size = getOptionFrameSize()
     Container.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     Container.Parent = MainContent
     Container.Name = tostring(optionCounter)
@@ -959,13 +1141,13 @@ local function createSearchToggleOption(name, tabName, isEnabled, toggleCallback
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Font = Enum.Font.SourceSans
-    Label.TextSize = rpx(14)
+    Label.TextSize = rpx(23)
     Label.Parent = Container
     Label.ZIndex = 999999
 
     local SwitchBG = Instance.new("TextButton")
-    SwitchBG.Size = UDim2.new(0, rpx(45), 0, rpx(24))
-    SwitchBG.Position = UDim2.new(1, -rpx(55), 0.5, -rpx(12))
+    SwitchBG.Size = UDim2.new(0.15, 0, 0.45, 0)
+    SwitchBG.Position = UDim2.new(0.8, 0, 0.275, 0)
     SwitchBG.BackgroundColor3 = isEnabled() and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
     SwitchBG.Text = ""
     SwitchBG.Parent = Container
@@ -973,15 +1155,15 @@ local function createSearchToggleOption(name, tabName, isEnabled, toggleCallback
     SwitchBG.ZIndex = 999999
 
     local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, rpx(18), 0, rpx(18))
-    Circle.Position = isEnabled() and UDim2.new(1, -rpx(21), 0.5, -rpx(9)) or UDim2.new(0, rpx(3), 0.5, -rpx(9))
+    Circle.Size = UDim2.new(0.38, 0, 0.76, 0)
+    Circle.Position = isEnabled() and UDim2.new(0.56, 0, 0.12, 0) or UDim2.new(0.06, 0, 0.12, 0)
     Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Circle.Parent = SwitchBG
     Circle.ZIndex = 999999
 
     local function refresh()
         SwitchBG.BackgroundColor3 = isEnabled() and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
-        Circle.Position = isEnabled() and UDim2.new(1, -rpx(21), 0.5, -rpx(9)) or UDim2.new(0, rpx(3), 0.5, -rpx(9))
+        Circle.Position = isEnabled() and UDim2.new(0.56, 0, 0.12, 0) or UDim2.new(0.06, 0, 0.12, 0)
     end
 
     SwitchBG.Activated:Connect(function()
@@ -1005,7 +1187,7 @@ local function createCategory(tabName, categoryName, iconId)
     currentCategoryByTab[tabName] = categoryName
 
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0.959, 0, 0, rpx(53))
+    Container.Size = getOptionFrameSize()
     Container.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     Container.Parent = MainContent
     Container.Name = tostring(optionCounter)
@@ -1031,7 +1213,7 @@ local function createCategory(tabName, categoryName, iconId)
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Font = Enum.Font.SourceSansBold
-    Label.TextSize = rpx(14)
+    Label.TextSize = rpx(23)
     Label.Parent = Container
     Label.ZIndex = 999999
 
@@ -1041,7 +1223,7 @@ local function createCategory(tabName, categoryName, iconId)
     ArrowButton.BackgroundTransparency = 1
     ArrowButton.Text = ">"
     ArrowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ArrowButton.TextSize = rpx(24)
+    ArrowButton.TextSize = rpx(30)
     ArrowButton.Font = Enum.Font.GothamBold
     ArrowButton.Parent = Container
     ArrowButton.ZIndex = 999999
@@ -1061,6 +1243,8 @@ local function createCategory(tabName, categoryName, iconId)
     end)
     ArrowButton.Activated:Connect(toggleCategory)
 
+    categoryHeaders[key] = Container
+    categoryArrows[key] = ArrowButton
     categoryHeaderKeys[Container] = key
     table.insert(tabs[tabName].elements, Container)
     optionElementsMap[Container] = categoryName
@@ -1072,7 +1256,7 @@ local function createFarmSelector(tabName)
     local isExpanded = false
 
     local MainContainer = Instance.new("Frame")
-    MainContainer.Size = UDim2.new(0.959, 0, 0, rpx(53))
+    MainContainer.Size = getOptionFrameSize()
     MainContainer.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     MainContainer.Parent = MainContent
     MainContainer.Name = tostring(optionCounter)
@@ -1088,7 +1272,7 @@ local function createFarmSelector(tabName)
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Left
     Label.Font = Enum.Font.SourceSans
-    Label.TextSize = rpx(14)
+    Label.TextSize = rpx(23)
     Label.Parent = MainContainer
     Label.ZIndex = 999999
 
@@ -1098,7 +1282,7 @@ local function createFarmSelector(tabName)
     ArrowButton.BackgroundTransparency = 1
     ArrowButton.Text = ">"
     ArrowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ArrowButton.TextSize = rpx(24)
+    ArrowButton.TextSize = rpx(30)
     ArrowButton.Font = Enum.Font.GothamBold
     ArrowButton.Parent = MainContainer
     ArrowButton.ZIndex = 999999
@@ -1117,24 +1301,24 @@ local function createFarmSelector(tabName)
 
     local wrapper = Instance.new("Frame")
     wrapper.Size = UDim2.new(1, 0, 0, 0)
-    wrapper.BackgroundTransparency = 1
+    wrapper.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     wrapper.Parent = farmContainer
     wrapper.ZIndex = 999999
 
     local list = Instance.new("UIListLayout")
-    list.Padding = UDim.new(0, rpx(4))
+    list.Padding = UDim.new(0, getDropdownPadding())
     list.SortOrder = Enum.SortOrder.LayoutOrder
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    list.VerticalFlex = Enum.UIFlexAlignment.None
     list.Parent = wrapper
 
     local farmOptions = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Ancient", "Divine"}
-    local rowHeight = rpx(53)
-    local rowPadding = rpx(4)
-    wrapper.Size = UDim2.new(1, 0, 0, (#farmOptions * rowHeight) + ((#farmOptions - 1) * rowPadding))
+    wrapper.Size = UDim2.new(1, 0, 0, getDropdownContentHeight(#farmOptions))
     local farmFrames = {}
 
     for i, option in ipairs(farmOptions) do
         local farmBox = Instance.new("Frame")
-        farmBox.Size = UDim2.new(0.959, 0, 0, rowHeight)
+        farmBox.Size = getOptionFrameSize()
         farmBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
         farmBox.Parent = wrapper
         farmBox.ZIndex = 999999
@@ -1149,13 +1333,13 @@ local function createFarmSelector(tabName)
         farmLabel.BackgroundTransparency = 1
         farmLabel.TextXAlignment = Enum.TextXAlignment.Left
         farmLabel.Font = Enum.Font.SourceSans
-        farmLabel.TextSize = rpx(14)
+        farmLabel.TextSize = rpx(23)
         farmLabel.Parent = farmBox
         farmLabel.ZIndex = 999999
 
         local farmSwitch = Instance.new("TextButton")
-        farmSwitch.Size = UDim2.new(0, rpx(45), 0, rpx(24))
-        farmSwitch.Position = UDim2.new(1, -rpx(55), 0.5, -rpx(12))
+        farmSwitch.Size = UDim2.new(0.15, 0, 0.45, 0)
+        farmSwitch.Position = UDim2.new(0.8, 0, 0.275, 0)
         farmSwitch.BackgroundColor3 = selectedFarmOptions[option] and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
         farmSwitch.Text = ""
         farmSwitch.Parent = farmBox
@@ -1163,8 +1347,8 @@ local function createFarmSelector(tabName)
         farmSwitch.ZIndex = 999999
 
         local farmCircle = Instance.new("Frame")
-        farmCircle.Size = UDim2.new(0, rpx(18), 0, rpx(18))
-        farmCircle.Position = selectedFarmOptions[option] and UDim2.new(1, -rpx(21), 0.5, -rpx(9)) or UDim2.new(0, rpx(3), 0.5, -rpx(9))
+        farmCircle.Size = UDim2.new(0.38, 0, 0.76, 0)
+        farmCircle.Position = selectedFarmOptions[option] and UDim2.new(0.56, 0, 0.12, 0) or UDim2.new(0.06, 0, 0.12, 0)
         farmCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         farmCircle.Parent = farmSwitch
         farmCircle.ZIndex = 999999
@@ -1175,7 +1359,7 @@ local function createFarmSelector(tabName)
                 optionStates["FarmOption_" .. option] = selectedFarmOptions[option]
                 setOptionState("FarmOption_" .. option, selectedFarmOptions[option])
                 farmSwitch.BackgroundColor3 = selectedFarmOptions[option] and Color3.fromRGB(100, 150, 200) or Color3.fromRGB(40, 40, 40)
-                farmCircle:TweenPosition(selectedFarmOptions[option] and UDim2.new(1, -rpx(21), 0.5, -rpx(9)) or UDim2.new(0, rpx(3), 0.5, -rpx(9)), "Out", "Quad", 0.2, true)
+                farmCircle:TweenPosition(selectedFarmOptions[option] and UDim2.new(0.56, 0, 0.12, 0) or UDim2.new(0.06, 0, 0.12, 0), "Out", "Quad", 0.2, true)
             end
         end
 
@@ -1203,14 +1387,13 @@ local function createFarmSelector(tabName)
                 frame.Visible = isExpanded
             end
             if isExpanded then
-                local contentHeight = (#farmOptions * rowHeight) + ((#farmOptions - 1) * rowPadding)
-                farmContainer.Size = UDim2.new(0.959, 0, 0, math.min(contentHeight, (4 * rowHeight) + (3 * rowPadding)))
-                farmContainer.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
+                farmContainer.Size = UDim2.new(0.959, 0, 0, getDropdownVisibleHeight(#farmOptions, 4))
+                farmContainer.CanvasSize = UDim2.new(0, 0, 0, getDropdownContentHeight(#farmOptions))
             else
                 farmContainer.Size = UDim2.new(0.959, 0, 0, 0)
                 farmContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
             end
-            MainContent.CanvasSize = UDim2.new(0, 0, 0, ContentListLayout.AbsoluteContentSize.Y + rpx(20))
+            refreshMainCanvas()
         end
     end
 
@@ -1618,7 +1801,7 @@ updateSearchFilter = function()
         end
     end
 
-    MainContent.CanvasSize = UDim2.new(0, 0, 0, ContentListLayout.AbsoluteContentSize.Y + rpx(20))
+    refreshMainCanvas()
 end
 
 SearchTextBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1629,11 +1812,24 @@ if updateSearchFilter then
     updateSearchFilter()
 end
 
-MainContent.CanvasSize = UDim2.new(0, 0, 0, ContentListLayout.AbsoluteContentSize.Y + rpx(20))
+refreshMainCanvas()
 
-CloseButton.Activated:Connect(function()
+local function setConfirmVisible(visible)
+    ConfirmFrame.Visible = visible
+    ConfirmShadow.Visible = visible
+end
+
+MinimizeButton.Activated:Connect(function()
     MainFrame.Visible = false
     ShadowFrame.Visible = false
+end)
+
+CloseButton.Activated:Connect(function()
+    setConfirmVisible(true)
+end)
+
+ConfirmNoButton.Activated:Connect(function()
+    setConfirmVisible(false)
 end)
 
 FloatingButton.Activated:Connect(function()
@@ -2074,5 +2270,55 @@ Player.CharacterAdded:Connect(function()
     if shiftLockConnection then
         shiftLockConnection:Disconnect()
         shiftLockConnection = nil
+    end
+end)
+
+local function stopAllScriptFeatures()
+    autoPowerActive = false
+    autoCarryActive = false
+    autoReachActive = false
+    autoFarmActive = false
+    isFlyActive = false
+    noclipEnabled = false
+    getgenv().ShiftLockEnabled = false
+
+    for name, value in pairs(optionStates) do
+        if type(value) == "boolean" then
+            optionStates[name] = false
+        end
+    end
+
+    for farmName, _ in pairs(selectedFarmOptions) do
+        selectedFarmOptions[farmName] = false
+        optionStates["FarmOption_" .. farmName] = false
+    end
+
+    if bg then
+        pcall(function() bg:Destroy() end)
+        bg = nil
+    end
+
+    if bv then
+        pcall(function() bv:Destroy() end)
+        bv = nil
+    end
+
+    for part, canCollide in pairs(noclipParts) do
+        if part and part.Parent then
+            pcall(function() part.CanCollide = canCollide end)
+        end
+    end
+    noclipParts = {}
+
+    if destroyShiftLockUI then
+        destroyShiftLockUI()
+    end
+end
+
+ConfirmYesButton.Activated:Connect(function()
+    saveCurrentSettings()
+    stopAllScriptFeatures()
+    if ScreenGui then
+        ScreenGui:Destroy()
     end
 end)
