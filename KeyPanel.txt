@@ -1,0 +1,705 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local BASE_VIEWPORT_SIZE = Vector2.new(1600, 720)
+
+local function getResponsiveScale()
+        local camera = workspace.CurrentCamera
+        local viewportSize = camera and camera.ViewportSize or BASE_VIEWPORT_SIZE
+        local scale = math.min(viewportSize.X / BASE_VIEWPORT_SIZE.X, viewportSize.Y / BASE_VIEWPORT_SIZE.Y)
+        return math.clamp(scale, 0.85, 2.15)
+end
+
+local function rpx(value)
+        if value == 0 then
+                return 0
+        end
+
+        local scale = getResponsiveScale()
+        local sign = value < 0 and -1 or 1
+        return sign * math.max(1, math.floor(math.abs(value) * scale + 0.5))
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KeyPanel"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local blurEffect = nil
+local notificationTimers = {}
+local linksPanelOpen = false
+local selectedLinkSite = nil
+local panelClosed = false
+
+local function createBlur()
+	if not blurEffect then
+		blurEffect = Instance.new("BlurEffect")
+		blurEffect.Name = "PanelBlur"
+		blurEffect.Size = 35
+		blurEffect.Parent = Lighting
+	end
+end
+
+local function removeBlur()
+	if blurEffect then
+		blurEffect:Destroy()
+		blurEffect = nil
+	end
+end
+
+local function createNotificationGui()
+	local notifGui = Instance.new("ScreenGui")
+	notifGui.Name = "NotificationScreenGui"
+	notifGui.ResetOnSpawn = false
+	notifGui.Parent = playerGui
+	return notifGui
+end
+
+local function showNotification(title, iconId, duration)
+	local notificationScreenGui = createNotificationGui()
+	
+	local notificationGui = Instance.new("Frame")
+	notificationGui.Name = "NotificationGui"
+	notificationGui.Size = UDim2.new(0.28, 0, 0.15, 0)
+	notificationGui.Position = UDim2.new(0.71, 0, 0.8, 0)
+	notificationGui.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	notificationGui.BorderSizePixel = 2
+	notificationGui.BorderColor3 = Color3.fromRGB(128, 128, 128)
+	notificationGui.Parent = notificationScreenGui
+
+	local notificationIcon = Instance.new("ImageLabel")
+	notificationIcon.Name = "NotificationIcon"
+	notificationIcon.Size = UDim2.new(0.2, 0, 0.699, 0)
+	notificationIcon.Position = UDim2.new(0.029, 0, 0.2, 0)
+	notificationIcon.BackgroundTransparency = 1
+	notificationIcon.Image = "rbxassetid://" .. iconId
+	notificationIcon.Parent = notificationGui
+
+	local notificationLabel = Instance.new("TextLabel")
+	notificationLabel.Name = "NotificationLabel"
+	notificationLabel.Size = UDim2.new(0.6, 0, 0.898, 0)
+	notificationLabel.Position = UDim2.new(0.25, 0, 0.06, 0)
+	notificationLabel.BackgroundTransparency = 1
+	notificationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	notificationLabel.TextSize = rpx(14)
+	notificationLabel.Font = Enum.Font.Gotham
+	notificationLabel.Text = title
+	notificationLabel.TextWrapped = true
+	notificationLabel.TextXAlignment = Enum.TextXAlignment.Left
+	notificationLabel.Parent = notificationGui
+
+	local progressLine = Instance.new("Frame")
+	progressLine.Name = "ProgressLine"
+	progressLine.Size = UDim2.new(1, 0, 0.045, 0)
+	progressLine.Position = UDim2.new(0, 0, 1, 0)
+	progressLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	progressLine.BorderSizePixel = 0
+	progressLine.Parent = notificationGui
+
+	local startTime = tick()
+	local totalWidth = 1
+	local notificationId = tostring(math.random(100000, 999999))
+
+	notificationTimers[notificationId] = {
+		startTime = startTime,
+		duration = duration,
+		gui = notificationGui,
+		screenGui = notificationScreenGui
+	}
+
+	local slideInTween = game:GetService("TweenService"):Create(
+		notificationGui,
+		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Position = UDim2.new(0.71, 0, 0.8, 0)}
+	)
+	slideInTween:Play()
+
+	local progressConnection
+	progressConnection = RunService.RenderStepped:Connect(function()
+		if notificationTimers[notificationId] == nil then
+			progressConnection:Disconnect()
+			return
+		end
+
+		local elapsed = tick() - notificationTimers[notificationId].startTime
+		local progress = math.min(elapsed / notificationTimers[notificationId].duration, 1)
+
+		if notificationGui and notificationGui.Parent then
+			progressLine.Size = UDim2.new(totalWidth * progress, 0, 0.045, 0)
+		end
+
+		if progress >= 1 then
+			progressConnection:Disconnect()
+
+			if notificationGui and notificationGui.Parent then
+				local slideOutTween = game:GetService("TweenService"):Create(
+					notificationGui,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+					{Position = UDim2.new(0.99, 0, 0.8, 0)}
+				)
+				slideOutTween:Play()
+
+				slideOutTween.Completed:Connect(function()
+					if notificationGui then
+						notificationGui:Destroy()
+					end
+					if notificationScreenGui then
+						notificationScreenGui:Destroy()
+					end
+					notificationTimers[notificationId] = nil
+				end)
+			end
+		end
+	end)
+end
+
+local panelFrame = Instance.new("Frame")
+panelFrame.Name = "PanelFrame"
+panelFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+panelFrame.Size = UDim2.new(0.34, 0, 0.889, 0)
+panelFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+panelFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+panelFrame.BorderSizePixel = 3
+panelFrame.BorderColor3 = Color3.fromRGB(128, 128, 128)
+panelFrame.Parent = screenGui
+
+local expandTween = game:GetService("TweenService"):Create(
+	panelFrame,
+	TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+	{Size = UDim2.new(0.34, 0, 0.889, 0)}
+)
+
+local initialSize = UDim2.new(0, 0, 0.889, 0)
+panelFrame.Size = initialSize
+expandTween:Play()
+
+createBlur()
+
+showNotification("Key Panel Activated", "80476206203371", 2.85)
+
+local dragging = false
+local dragStart = nil
+local frameStart = nil
+
+panelFrame.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed or panelClosed then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local relativeY = input.Position.Y - panelFrame.AbsolutePosition.Y
+
+		if relativeY >= 0 and relativeY <= 70 then
+			dragging = true
+			dragStart = input.Position
+			frameStart = panelFrame.Position
+		end
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		panelFrame.Position = UDim2.new(frameStart.X.Scale, frameStart.X.Offset + delta.X, frameStart.Y.Scale, frameStart.Y.Offset + delta.Y)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+local headerFrame = Instance.new("Frame")
+headerFrame.Name = "HeaderFrame"
+headerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+headerFrame.Size = UDim2.new(1, 0, 0.16, 0)
+headerFrame.Position = UDim2.new(0.5, 0, 0.08, 0)
+headerFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+headerFrame.BorderSizePixel = 0
+headerFrame.Parent = panelFrame
+
+local logoImage = Instance.new("ImageLabel")
+logoImage.Name = "LogoImage"
+logoImage.Size = UDim2.new(0.14, 0, 0.8, 0)
+logoImage.Position = UDim2.new(0.02, 0, 0.1, 0)
+logoImage.BackgroundTransparency = 0
+logoImage.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+logoImage.Image = "rbxassetid://121715364276099"
+logoImage.Parent = headerFrame
+
+local logoCorner = Instance.new("UICorner")
+logoCorner.CornerRadius = UDim.new(0, 25)
+logoCorner.Parent = logoImage
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(0.5, 0, 0.7, 0)
+titleLabel.Position = UDim2.new(0.18, 0, 0.15, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = rpx(20)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Text = "Phantom Hub"
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+titleLabel.Parent = headerFrame
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0.1, 0, 0.6, 0)
+closeButton.Position = UDim2.new(0.88, 0, 0.2, 0)
+closeButton.BackgroundTransparency = 1
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = rpx(32)
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Text = "×"
+closeButton.Parent = headerFrame
+
+closeButton.MouseButton1Click:Connect(function()
+	if panelClosed then return end
+	panelClosed = true
+	
+	local shrinkTween = game:GetService("TweenService"):Create(
+		panelFrame,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{Size = UDim2.new(0, 0, 0.889, 0)}
+	)
+	shrinkTween:Play()
+
+	shrinkTween.Completed:Connect(function()
+		removeBlur()
+		screenGui:Destroy()
+	end)
+
+	showNotification("Goodbye!", "103143203291425", 2.85)
+end)
+
+local dividerLine = Instance.new("Frame")
+dividerLine.Name = "DividerLine"
+dividerLine.Size = UDim2.new(1, 0, 0.005, 0)
+dividerLine.Position = UDim2.new(0, 0, 0.158, 0)
+dividerLine.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
+dividerLine.BorderSizePixel = 0
+dividerLine.Parent = panelFrame
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(0.92, 0, 0.65, 0)
+contentFrame.Position = UDim2.new(0.042, 0, 0.2, 0)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = panelFrame
+
+local keyInputFrame = Instance.new("Frame")
+keyInputFrame.Name = "KeyInputFrame"
+keyInputFrame.Size = UDim2.new(1, 0, 0.18, 0)
+keyInputFrame.Position = UDim2.new(0, 0, 0, 0)
+keyInputFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+keyInputFrame.BorderSizePixel = 1
+keyInputFrame.BorderColor3 = Color3.fromRGB(100, 100, 100)
+keyInputFrame.Parent = contentFrame
+
+local keyTextBox = Instance.new("TextBox")
+keyTextBox.Name = "KeyTextBox"
+keyTextBox.Size = UDim2.new(1, 0, 1, 0)
+keyTextBox.Position = UDim2.new(0.008, 0, 0.05, 0)
+keyTextBox.BackgroundTransparency = 1
+keyTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyTextBox.TextSize = rpx(14)
+keyTextBox.Font = Enum.Font.Gotham
+keyTextBox.Text = ""
+keyTextBox.ClearTextOnFocus = false
+keyTextBox.TextXAlignment = Enum.TextXAlignment.Left
+keyTextBox.CursorPosition = 0
+keyTextBox.Parent = keyInputFrame
+
+local placeholderLabel = Instance.new("TextLabel")
+placeholderLabel.Name = "PlaceholderLabel"
+placeholderLabel.Size = UDim2.new(1, 0, 1, 0)
+placeholderLabel.Position = UDim2.new(0.01, 0, 0.02, 0)
+placeholderLabel.BackgroundTransparency = 1
+placeholderLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+placeholderLabel.TextSize = rpx(14)
+placeholderLabel.Font = Enum.Font.Gotham
+placeholderLabel.Text = "Enter Your Key"
+placeholderLabel.TextXAlignment = Enum.TextXAlignment.Left
+placeholderLabel.ClipsDescendants = true
+placeholderLabel.Parent = keyInputFrame
+
+keyTextBox.Focused:Connect(function()
+	placeholderLabel.Visible = false
+end)
+
+keyTextBox.FocusLost:Connect(function()
+	if keyTextBox.Text == "" then
+		placeholderLabel.Visible = true
+	end
+end)
+
+keyTextBox.Changed:Connect(function()
+	if keyTextBox.Text == "" then
+		placeholderLabel.Visible = true
+	else
+		placeholderLabel.Visible = false
+	end
+end)
+
+local buttonsFrame = Instance.new("Frame")
+buttonsFrame.Name = "ButtonsFrame"
+buttonsFrame.Size = UDim2.new(1, 0, 0.7, 0)
+buttonsFrame.Position = UDim2.new(0, 0, 0.22, 0)
+buttonsFrame.BackgroundTransparency = 1
+buttonsFrame.Parent = contentFrame
+
+local getKeyButton = Instance.new("TextButton")
+getKeyButton.Name = "GetKeyButton"
+getKeyButton.Size = UDim2.new(1, 0, 0.2, 0)
+getKeyButton.Position = UDim2.new(0, 0, 0, 0)
+getKeyButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+getKeyButton.TextSize = rpx(14)
+getKeyButton.Font = Enum.Font.GothamBold
+getKeyButton.Text = "  Get Key"
+getKeyButton.BorderSizePixel = 1
+getKeyButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+getKeyButton.Parent = buttonsFrame
+
+local getKeyIcon = Instance.new("ImageLabel")
+getKeyIcon.Name = "GetKeyIcon"
+getKeyIcon.Size = UDim2.new(0.06, 0, 0.6, 0)
+getKeyIcon.Position = UDim2.new(0.02, 0, 0.25, 0)
+getKeyIcon.BackgroundTransparency = 1
+getKeyIcon.Image = "rbxassetid://108246566195671"
+getKeyIcon.Parent = getKeyButton
+
+local linksPanel = nil
+local lootbashButton = nil
+local linkvertiseButton = nil
+
+local function closeLinksPanel()
+	if linksPanel and linksPanel.Parent then
+		local shrinkTween = game:GetService("TweenService"):Create(
+			linksPanel,
+			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{Size = UDim2.new(0, 0, 0.89, 0)}
+		)
+		shrinkTween:Play()
+
+		shrinkTween.Completed:Connect(function()
+			linksPanel:Destroy()
+			linksPanel = nil
+			linksPanelOpen = false
+			selectedLinkSite = nil
+		end)
+	end
+end
+
+local function updateCopyButtonColor(copyLinkButton)
+	if selectedLinkSite then
+		copyLinkButton.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+	else
+		copyLinkButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	end
+end
+
+local function createLinksPanel()
+	if linksPanelOpen then
+		closeLinksPanel()
+		return
+	end
+
+	linksPanelOpen = true
+
+	linksPanel = Instance.new("Frame")
+	linksPanel.Name = "LinksPanel"
+	linksPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	linksPanel.Size = UDim2.new(0, 0, 0.89, 0)
+	linksPanel.Position = UDim2.new(0.2, 0, 0.5, 0)
+	linksPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	linksPanel.BorderSizePixel = 3
+	linksPanel.BorderColor3 = Color3.fromRGB(128, 128, 128)
+	linksPanel.Parent = screenGui
+
+	local expandTween = game:GetService("TweenService"):Create(
+		linksPanel,
+		TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Size = UDim2.new(0.22, 0, 0.89, 0)}
+	)
+	expandTween:Play()
+
+	local linksHeaderFrame = Instance.new("Frame")
+	linksHeaderFrame.Name = "LinksHeaderFrame"
+	linksHeaderFrame.Size = UDim2.new(1, 0, 0.16, 0)
+	linksHeaderFrame.Position = UDim2.new(0, 0, 0, 0)
+	linksHeaderFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	linksHeaderFrame.BorderSizePixel = 0
+	linksHeaderFrame.Parent = linksPanel
+
+	local linksTitleLabel = Instance.new("TextLabel")
+	linksTitleLabel.Name = "LinksTitleLabel"
+	linksTitleLabel.Size = UDim2.new(0.08, 0, 0.95, 0)
+	linksTitleLabel.Position = UDim2.new(0.05, 0, 0.04, 0)
+	linksTitleLabel.BackgroundTransparency = 1
+	linksTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	linksTitleLabel.TextSize = rpx(16)
+	linksTitleLabel.Font = Enum.Font.GothamBold
+	linksTitleLabel.Text = "Links"
+	linksTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	linksTitleLabel.TextYAlignment = Enum.TextYAlignment.Center
+	linksTitleLabel.Parent = linksHeaderFrame
+
+	local linksCloseButton = Instance.new("TextButton")
+	linksCloseButton.Name = "LinksCloseButton"
+	linksCloseButton.Size = UDim2.new(1, 0, 0.16, 0)
+	linksCloseButton.Position = UDim2.new(0.4, 0, 0.449, 0)
+	linksCloseButton.BackgroundTransparency = 1
+	linksCloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	linksCloseButton.TextSize = rpx(24)
+	linksCloseButton.Font = Enum.Font.GothamBold
+	linksCloseButton.Text = "×"
+	linksCloseButton.Parent = linksHeaderFrame
+
+	linksCloseButton.MouseButton1Click:Connect(function()
+		closeLinksPanel()
+	end)
+
+	local linksDividerLine = Instance.new("Frame")
+	linksDividerLine.Name = "LinksDividerLine"
+	linksDividerLine.Size = UDim2.new(1, 0, 0.006, 0)
+	linksDividerLine.Position = UDim2.new(0, 0, 0.16, 0)
+	linksDividerLine.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
+	linksDividerLine.BorderSizePixel = 0
+	linksDividerLine.Parent = linksPanel
+
+	local linksContentFrame = Instance.new("Frame")
+	linksContentFrame.Name = "LinksContentFrame"
+	linksContentFrame.Size = UDim2.new(0.85, 0, 0.65, 0)
+	linksContentFrame.Position = UDim2.new(0.08, 0, 0.2, 0)
+	linksContentFrame.BackgroundTransparency = 1
+	linksContentFrame.Parent = linksPanel
+
+	lootbashButton = Instance.new("TextButton")
+	lootbashButton.Name = "LootbashButton"
+	lootbashButton.Size = UDim2.new(1, 0, 0.25, 0)
+	lootbashButton.Position = UDim2.new(0, 0, 0, 0)
+	lootbashButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	lootbashButton.BorderSizePixel = 2
+	lootbashButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+	lootbashButton.Text = ""
+	lootbashButton.Parent = linksContentFrame
+
+	local lootbashIcon = Instance.new("ImageLabel")
+	lootbashIcon.Name = "LootbashIcon"
+	lootbashIcon.Size = UDim2.new(0.15, 0, 0.5, 0)
+	lootbashIcon.Position = UDim2.new(0.05, 0, 0.2, 0)
+	lootbashIcon.BackgroundTransparency = 1
+	lootbashIcon.Image = "rbxassetid://77343750949588"
+	lootbashIcon.Parent = lootbashButton
+
+	local lootbashTitleLabel = Instance.new("TextLabel")
+	lootbashTitleLabel.Name = "LootbashTitleLabel"
+	lootbashTitleLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	lootbashTitleLabel.Position = UDim2.new(0.22, 0, 0.1, 0)
+	lootbashTitleLabel.BackgroundTransparency = 1
+	lootbashTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lootbashTitleLabel.TextSize = rpx(12)
+	lootbashTitleLabel.Font = Enum.Font.GothamBold
+	lootbashTitleLabel.Text = "Lootbash"
+	lootbashTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	lootbashTitleLabel.Parent = lootbashButton
+
+	local lootbashDescLabel = Instance.new("TextLabel")
+	lootbashDescLabel.Name = "LootbashDescLabel"
+	lootbashDescLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	lootbashDescLabel.Position = UDim2.new(0.22, 0, 0.4, 0)
+	lootbashDescLabel.BackgroundTransparency = 1
+	lootbashDescLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	lootbashDescLabel.TextSize = rpx(10)
+	lootbashDescLabel.Font = Enum.Font.Gotham
+	lootbashDescLabel.Text = "Complete tasks"
+	lootbashDescLabel.TextWrapped = true
+	lootbashDescLabel.TextXAlignment = Enum.TextXAlignment.Left
+	lootbashDescLabel.Parent = lootbashButton
+
+	linkvertiseButton = Instance.new("TextButton")
+	linkvertiseButton.Name = "LinkvertiseButton"
+	linkvertiseButton.Size = UDim2.new(1, 0, 0.25, 0)
+	linkvertiseButton.Position = UDim2.new(0, 0, 0.3, 0)
+	linkvertiseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	linkvertiseButton.BorderSizePixel = 2
+	linkvertiseButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+	linkvertiseButton.Text = ""
+	linkvertiseButton.Parent = linksContentFrame
+
+	local linkvertiseIcon = Instance.new("ImageLabel")
+	linkvertiseIcon.Name = "LinkvertiseIcon"
+	linkvertiseIcon.Size = UDim2.new(0.15, 0, 0.5, 0)
+	linkvertiseIcon.Position = UDim2.new(0.05, 0, 0.2, 0)
+	linkvertiseIcon.BackgroundTransparency = 1
+	linkvertiseIcon.Image = "rbxassetid://116287785790328"
+	linkvertiseIcon.Parent = linkvertiseButton
+
+	local linkvertiseTitleLabel = Instance.new("TextLabel")
+	linkvertiseTitleLabel.Name = "LinkvertiseTitleLabel"
+	linkvertiseTitleLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	linkvertiseTitleLabel.Position = UDim2.new(0.22, 0, 0.1, 0)
+	linkvertiseTitleLabel.BackgroundTransparency = 1
+	linkvertiseTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	linkvertiseTitleLabel.TextSize = rpx(12)
+	linkvertiseTitleLabel.Font = Enum.Font.GothamBold
+	linkvertiseTitleLabel.Text = "Linkvertise"
+	linkvertiseTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	linkvertiseTitleLabel.Parent = linkvertiseButton
+
+	local linkvertiseDescLabel = Instance.new("TextLabel")
+	linkvertiseDescLabel.Name = "LinkvertiseDescLabel"
+	linkvertiseDescLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	linkvertiseDescLabel.Position = UDim2.new(0.22, 0, 0.4, 0)
+	linkvertiseDescLabel.BackgroundTransparency = 1
+	linkvertiseDescLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	linkvertiseDescLabel.TextSize = rpx(10)
+	linkvertiseDescLabel.Font = Enum.Font.Gotham
+	linkvertiseDescLabel.Text = "Watch ads"
+	linkvertiseDescLabel.TextWrapped = true
+	linkvertiseDescLabel.TextXAlignment = Enum.TextXAlignment.Left
+	linkvertiseDescLabel.Parent = linkvertiseButton
+
+	local linksDivider = Instance.new("Frame")
+	linksDivider.Name = "LinksDivider"
+	linksDivider.AnchorPoint = Vector2.new(0.5, 0.5)
+	linksDivider.Size = UDim2.new(1.19, 0, 0.008, 0)
+	linksDivider.Position = UDim2.new(0.5, 0, 0.8, 0)
+	linksDivider.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
+	linksDivider.BorderSizePixel = 0
+	linksDivider.Parent = linksContentFrame
+
+	local copyLinkButton = Instance.new("TextButton")
+	copyLinkButton.Name = "CopyLinkButton"
+	copyLinkButton.Size = UDim2.new(1, 0, 0.2, 0)
+	copyLinkButton.Position = UDim2.new(0, 0, 0.9, 0)
+	copyLinkButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	copyLinkButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	copyLinkButton.TextSize = rpx(12)
+	copyLinkButton.Font = Enum.Font.GothamBold
+	copyLinkButton.Text = "Copy Link"
+	copyLinkButton.BorderSizePixel = 1
+	copyLinkButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+	copyLinkButton.Parent = linksContentFrame
+
+	lootbashButton.MouseButton1Click:Connect(function()
+		if selectedLinkSite == "lootbash" then
+			selectedLinkSite = nil
+			lootbashButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+		else
+			selectedLinkSite = "lootbash"
+			lootbashButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+			linkvertiseButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+		end
+		updateCopyButtonColor(copyLinkButton)
+	end)
+
+	linkvertiseButton.MouseButton1Click:Connect(function()
+		if selectedLinkSite == "linkvertise" then
+			selectedLinkSite = nil
+			linkvertiseButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+		else
+			selectedLinkSite = "linkvertise"
+			linkvertiseButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+			lootbashButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+		end
+		updateCopyButtonColor(copyLinkButton)
+	end)
+
+	copyLinkButton.MouseButton1Click:Connect(function()
+		if selectedLinkSite == "lootbash" then
+			setclipboard("https://lootbash.com/")
+			showNotification("Lootbash Link Copied", "88704800286791", 2.85)
+		elseif selectedLinkSite == "linkvertise" then
+			setclipboard("https://linkvertise.com/")
+			showNotification("Linkvertise Link Copied", "88704800286791", 2.85)
+		end
+	end)
+
+	updateCopyButtonColor(copyLinkButton)
+end
+
+getKeyButton.MouseButton1Click:Connect(function()
+	if not panelClosed then
+		createLinksPanel()
+	end
+end)
+
+local redeemKeyButton = Instance.new("TextButton")
+redeemKeyButton.Name = "RedeemKeyButton"
+redeemKeyButton.Size = UDim2.new(1, 0, 0.2, 0)
+redeemKeyButton.Position = UDim2.new(0, 0, 0.25, 0)
+redeemKeyButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+redeemKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+redeemKeyButton.TextSize = rpx(14)
+redeemKeyButton.Font = Enum.Font.GothamBold
+redeemKeyButton.Text = "  Redeem Key"
+redeemKeyButton.BorderSizePixel = 1
+redeemKeyButton.BorderColor3 = Color3.fromRGB(100, 100, 100)
+redeemKeyButton.Parent = buttonsFrame
+
+local redeemKeyIcon = Instance.new("ImageLabel")
+redeemKeyIcon.Name = "RedeemKeyIcon"
+redeemKeyIcon.Size = UDim2.new(0.06, 0, 0.6, 0)
+redeemKeyIcon.Position = UDim2.new(0.02, 0, 0.25, 0)
+redeemKeyIcon.BackgroundTransparency = 1
+redeemKeyIcon.Image = "rbxassetid://138834311677964"
+redeemKeyIcon.Parent = redeemKeyButton
+
+redeemKeyButton.MouseButton1Click:Connect(function()
+	if panelClosed then return end
+	
+	local key = keyTextBox.Text
+
+	if key == "810245as" then
+		showNotification("Key Valid!", "113632340155323", 2.85)
+		panelClosed = true
+
+		local shrinkTween = game:GetService("TweenService"):Create(
+			panelFrame,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{Size = UDim2.new(0, 0, 0.889, 0)}
+		)
+		shrinkTween:Play()
+
+		shrinkTween.Completed:Connect(function()
+			removeBlur()
+			screenGui:Destroy()
+		end)
+	elseif key ~= "" then
+		showNotification("Invalid Key", "77742891350217", 2.85)
+	else
+		showNotification("Enter a Key", "77742891350217", 2.85)
+	end
+end)
+
+local iconsFrame = Instance.new("Frame")
+iconsFrame.Name = "IconsFrame"
+iconsFrame.Size = UDim2.new(1, 0, 0.2, 0)
+iconsFrame.Position = UDim2.new(0, 0, 0.5, 0)
+iconsFrame.BackgroundTransparency = 1
+iconsFrame.Parent = buttonsFrame
+
+local discordButton = Instance.new("ImageButton")
+discordButton.Name = "DiscordButton"
+discordButton.Size = UDim2.new(0.1, 0, 0.8, 0)
+discordButton.Position = UDim2.new(0.45, 0, 0.1, 0)
+discordButton.BackgroundTransparency = 1
+discordButton.BorderSizePixel = 0
+discordButton.Image = "rbxassetid://132744109593099"
+discordButton.Parent = iconsFrame
+
+discordButton.MouseButton1Click:Connect(function()
+	if not panelClosed then
+		setclipboard("https://discord.gg/72P6NhC5Pf")
+		showNotification("Discord Link Copied", "132744109593099", 2.85)
+	end
+end)
